@@ -1,0 +1,6 @@
+- name: Mount and bind a volume
+  mount:
+    path: "{{existing_data.home}}"
+    src: "{{existing_data.source}}"
+    state: mounted
+    fstype: nfs

@@ -1,0 +1,16 @@
+[Unit]
+Description=SOLR Service
+After=syslog.target network.target
+
+[Service]
+LimitNOFILE=10000
+Type=forking
+User={{solr.user}}
+Group={{solr.group}}
+
+WorkingDirectory={{solr.home}}/solr/bin
+ExecStart={{solr.home}}/solr/bin/solr start -a "-Dcreate.alfresco.defaults=alfresco,archive"
+ExecStop={{solr.home}}/solr/bin/solr stop
+
+[Install]
+WantedBy=multi-user.target

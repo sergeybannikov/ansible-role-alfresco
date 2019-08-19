@@ -1,0 +1,33 @@
+app:
+  security:
+    keycloak:
+      url: {{gateway.keycloak.url}}
+      realm: {{gateway.keycloak.realm}}
+
+    allowed-web-origins:
+      - "*"
+  target:
+    host: http://{{alfresco.host}}
+    port: {{alfresco.port}}
+    user-header: {{alfresco.auth.header}}
+    timeout: 600
+
+server:
+  port: {{gateway.port}}
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.hibernate: INFO
+  path: {{gateway.log.home}}
+#  pattern:
+#    level: '%X{mdcData}%5p'
+
+zuul:
+  routes:
+    foos:
+      path: /alfresco-proxy/**
+      url: http://{{alfresco.host}}:{{alfresco.port}}
+  servlet-path: /zuul
+

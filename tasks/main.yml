@@ -1,0 +1,12 @@
+- name: Install Alfresco
+  import_tasks: alfresco/install.yml
+  when: alfresco_install_enabled|bool
+    
+- name: Install Solr
+  delegate_to: "{{solr.host}}"
+  import_tasks: solr/install.yml
+  when: solr_install_enabled|bool
+    
+- name: Populate existing_data
+  import_tasks: populate/do_populate.yml
+  when: alfresco_populate_enabled|bool

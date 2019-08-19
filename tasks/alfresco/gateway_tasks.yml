@@ -1,0 +1,73 @@
+- name: Ensure group "{{gateway.group}}" exists
+  group:
+    name: "{{gateway.group}}"
+    state: present
+    
+- name: Add the user '"{{gateway.user}}"' 
+  user:
+    name: "{{gateway.user}}"
+    shell: /bin/bash
+    groups: "{{gateway.group}}"
+    append: yes
+    
+- name: Create a directory if it does not exist
+  file:
+    path: "{{gateway.home}}"
+    state: directory
+    owner: "{{gateway.user}}"    
+    group: "{{gateway.group}}"
+    mode: '0755'
+    
+- name: Copy gateway 
+  copy:
+    src:  "{{gateway_application_path}}"
+    dest: "{{gateway.home}}/"
+    owner: "{{gateway.user}}"    
+    group: "{{gateway.group}}"
+     
+- name: Create app.yml
+  template: 
+    src: gateway/app.yml.j2
+    dest: "{{gateway.home}}/app.yml"
+    owner: "{{gateway.user}}"
+    group: "{{gateway.group}}"
+    mode: '0755'
+    
+- name: Create bootstrap.yml
+  template: 
+    src: gateway/bootstrap.yml.j2
+    dest: "{{gateway.home}}/bootstrap.yml"
+    owner: "{{gateway.user}}"
+    group: "{{gateway.group}}"
+    mode: '0755'
+    
+- name: Create a log directory if it does not exist
+  file:
+    path: "{{gateway.log.home}}"
+    state: directory
+    owner: "{{gateway.user}}"
+    group: "{{gateway.group}}"
+    mode: '0755'
+
+- name: Open gateway port in iptables
+  iptables_raw:
+    name: open_alfresco_port
+    rules: "-A INPUT -p tcp -m state --state NEW -m multiport --dports {{gateway.port}} -j ACCEPT"
+  tags: iptables
+  become: yes
+
+
+- name: Create gateway.service
+  template: 
+    src: gateway/gateway.service.j2
+    dest: /etc/systemd/system/gateway.service
+    
+- name: force systemd to reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: Make sure a service is running
+  systemd:
+    state: started
+    name: gateway
+  

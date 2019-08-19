@@ -1,0 +1,59 @@
+- name: Make sure a service solr is stopped
+  systemd:
+    state: stopped
+    name: solr
+
+# collect stats about the dir
+- name: check contentstore exists
+  stat:
+    path: "{{solr.home}}/solrhome/alfresco"
+  register: alfresco
+
+# delete directory if condition is true
+- name: purge "{{solr.home}}/solrhome/alfresco"
+  file:
+    state: absent
+    path: "{{solr.home}}/solrhome/alfresco"
+  when: alfresco.stat.exists and alfresco.stat.isdir
+
+# collect stats about the dir
+- name: check contentstore exists
+  stat:
+    path: "{{solr.home}}/solrhome/archive"
+  register: archive
+
+# delete directory if condition is true
+- name: purge "{{solr.home}}/solrhome/archive"
+  file:
+    state: absent
+    path: "{{solr.home}}/solrhome/archive"
+  when: archive.stat.exists and archive.stat.isdir
+
+# collect stats about the dir
+- name: check alfrescoModels exists
+  stat:
+    path: "{{solr.home}}/solrhome/alfrescoModels"
+  register: alfrescoModels
+
+# delete directory if condition is true
+- name: purge "{{solr.home}}/solrhome/alfrescoModels"
+  file:
+    state: absent
+    path: "{{solr.home}}/solrhome/alfrescoModels"
+  when: alfrescoModels.stat.exists and alfrescoModels.stat.isdir
+  
+- name: Create a directory "{{solr.home}}/solrhome/alfrescoModels" if it does not exist
+  file:
+    path: "{{solr.home}}/solrhome/alfrescoModels"
+    state: directory
+    owner: "{{solr.user}}"
+    group: "{{solr.group}}"
+    mode: '0755'
+
+- name: Make sure a service solr is running
+  systemd:
+    state: started
+    name: solr
+
+
+

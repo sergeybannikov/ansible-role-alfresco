@@ -1,0 +1,17 @@
+- name: Fix alfresco host
+  replace:
+    path: "{{solr.home}}/solrhome/templates/rerank/conf/solrcore.properties"
+    regexp: '^alfresco.host=.*$'
+    replace: "alfresco.host={{alfresco.host}}"
+    
+- name: Fix alfresco port
+  replace:
+    path: "{{solr.home}}/solrhome/templates/rerank/conf/solrcore.properties"
+    regexp: '^alfresco.port=\d*$'
+    replace: "alfresco.port={{alfresco.port}}"
+ 
+- name: Fix alfresco secureComms
+  replace:
+    path: "{{solr.home}}/solrhome/templates/rerank/conf/solrcore.properties"
+    regexp: '^alfresco.secureComms=.*$'
+    replace: "alfresco.secureComms=none"

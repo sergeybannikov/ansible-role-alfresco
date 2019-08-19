@@ -1,0 +1,211 @@
+#- name: Check for Python
+#  raw: test -e /usr/bin/python
+#  changed_when: false
+#  register: check_python
+      
+- name: Install Python
+  raw: yum -y install python
+#  when: check_python.rc != 0
+
+- name: Install pip
+  raw: yum install python-pip python-wheel -y
+#  when: check_python.rc != 0
+
+- name: Install lxml
+  raw: pip install lxml
+#  when: check_python.rc != 0
+
+- name: check if alfresco exists
+  stat: 
+    path: "{{alfresco.home}}"
+  register: alfresco_archvie
+
+- name: Extract alfresco from local archive
+  unarchive:
+    src: "{{alfresco_archive_path}}"
+    dest: "{{home}}/"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+  when: 
+    - install_from_local_store|bool
+    - not alfresco_archvie.stat.exists|bool
+    
+- name: Extract alfresco from remote archive
+  unarchive:
+    src: "{{alfresco_zip_url}}"
+    remote_src: yes
+    dest: "{{home}}/"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+  when: 
+    - not install_from_local_store|bool
+    - not alfresco_archvie.stat.exists|bool
+    
+- name: Rename alfresco folder
+  command: "mv {{home}}/alfresco-content-services-community-distribution-{{alfresco.version}} {{alfresco.home}}"
+  when: alfresco_archvie.stat.exists == false
+ 
+#- name: Extract pdf renderer
+#  unarchive:
+#    src: "{{alfresco.home}}/alfresco-pdf-renderer/alfresco-pdf-renderer-1.1-linux.tgz"
+#    dest: "{{home}}/"
+#    remote_src: yes
+#    owner: "{{alfresco.user}}"
+#    group: "{{alfresco.group}}"
+#  when: alfresco_archvie.stat.exists == false
+    
+- name: check if shared exists
+  stat: 
+    path: "{{alfresco.home}}/web-server/shared"
+  register: alfresco_shared
+ 
+- name: Move shared to tomcat
+  command: "mv {{alfresco.home}}/web-server/shared {{alfresco.tomcat.home}}"
+  when: alfresco_shared.stat.exists == true
+ 
+- name: check if libs exists
+  stat: 
+    path: "{{alfresco.home}}/web-server/lib"
+  register: alfresco_libs
+  
+- name: Copy libs to tomcat 
+  copy: 
+    src: "{{alfresco.home}}/web-server/lib/"
+    dest: "{{alfresco.tomcat.home}}/lib"
+    remote_src: yes
+    owner: "{{alfresco.user}}"    
+    group: "{{alfresco.group}}"
+
+- name: Clean webapps path
+  file:
+    state: absent
+    path: "{{alfresco.tomcat.home}}/webapps/"
+  
+- name: Copy webapps to tomcat 
+  copy: 
+    src: "{{alfresco.home}}/web-server/webapps/"
+    dest: "{{alfresco.tomcat.home}}/webapps"
+    remote_src: yes
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    
+- name: Create a conf/Catalina/ directory if it does not exist
+  file:
+    path: "{{alfresco.tomcat.home}}/conf/Catalina/"
+    state: directory
+    owner: "{{alfresco.user}}"
+    mode: '0755'
+    
+- name: Create a modules/platform directory if it does not exist
+  file:
+    path: "{{home}}/modules/platform"
+    state: directory
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: '0755'
+
+- name: Create a modules/share directory if it does not exist
+  file:
+    path: "{{home}}/modules/share"
+    state: directory
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: '0755'
+
+
+- name: Copy libs to tomcat 
+  copy: 
+    src: "{{alfresco.home}}/web-server/conf/Catalina/localhost/"
+    dest: "{{alfresco.tomcat.home}}/conf/Catalina/localhost"
+    remote_src: yes
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+   
+- name: Change catalina properties
+  replace:
+    path: "{{alfresco.tomcat.home}}/conf/catalina.properties"
+    regexp: 'shared\.loader=.*$'
+    replace: "shared.loader=${catalina.base}/shared/classes"
+  
+- name: Create a web-extension directory if it does not exist
+  file:
+    path: "{{alfresco.tomcat.home}}/shared/classes/alfresco/web-extension/"
+    state: directory
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: '0755'
+  
+- name: Create alfresco config
+  template: 
+    src: alfresco/alfresco-global.properties.j2
+    dest: "{{alfresco.tomcat.home}}/shared/classes/alfresco-global.properties"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: '0755'
+  
+- name: Create share config
+  template: 
+    src: share/share-config-custom.xml.j2
+    dest: "{{alfresco.tomcat.home}}/shared/classes/alfresco/web-extension/share-config-custom.xml"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: '0755'
+    
+- name: Create tomcat.service
+  template: 
+    src: alfresco/tomcat.service.j2
+    dest: "/etc/systemd/system/{{alfresco.service_name}}.service"
+    
+- name: Change Apply amps
+  replace:
+    path: "{{alfresco.home}}/bin/apply_amps.sh"
+    regexp: '^export CATALINA_HOME=\$ALF_HOME.*\/tomcat$'
+    replace: "export CATALINA_HOME=$ALF_HOME/../tomcat"
+
+- name: Change Apply amps
+  replace:
+    path: "{{alfresco.home}}/bin/apply_amps.sh"
+    regexp: '^read \w+$'
+    replace: "#read RESP"
+    
+- name: Changing perm of , adding "+x"
+  file: 
+    dest: "{{alfresco.home}}/bin/apply_amps.sh"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+    mode: a+x
+    
+- name: Apply amps
+  shell: "{{alfresco.home}}/bin/apply_amps.sh >> {{alfresco.home}}/bin/apply_amps.log"
+    
+- name: Change server.xml
+  xml:
+    path: "{{alfresco.tomcat.home}}/conf/server.xml"
+    xpath: /Server/Service/Connector[contains(@port, '8080')]
+    attribute: tomcatAuthentication
+    value: 'false'
+
+# For test purposes
+#- name: Open alfresco port in iptables
+#  iptables_raw:
+#    name: open_alfresco_port
+#    rules: "-A INPUT -p tcp -m state --state NEW -m multiport --dports {{alfresco.port}} -j ACCEPT"
+#  tags: iptables
+#  become: yes
+
+- name: just force systemd to reread configs (2.4 and above)
+  systemd:
+    daemon_reload: yes
+
+- name: Make sure a service is running
+  systemd:
+    state: started
+    enabled: yes
+    name: "{{alfresco.service_name}}"
+  when: not alfresco_populate_enabled|bool
+   
+- name: Import certs to java
+  import_tasks: alfresco/trusted_ca_import.yml
+    
+- name: Import gateway tasks
+  import_tasks: alfresco/gateway_tasks.yml

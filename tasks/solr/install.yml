@@ -1,0 +1,93 @@
+- name: Ensure group "{{solr.group}}" exists
+  group:
+    name: "{{solr.group}}"
+    state: present
+    
+- name: Add the user '"{{solr.user}}"' 
+  user:
+    name: "{{solr.user}}"
+    shell: /bin/bash
+    groups: "{{solr.group}}"
+    append: yes
+    
+- name: check if archvie exists
+  stat: 
+    path: "{{solr.home}}"
+  register: archvie
+
+- name: Extract solr from local archive
+  unarchive:
+    src: "{{solr_archive_path}}"
+    dest: "{{home}}/"
+    owner: "{{solr.user}}"
+    group: "{{solr.group}}"
+  when:
+    - install_from_local_store|bool
+    - not archvie.stat.exists|bool
+
+- name: Extract solr from remote archive
+  unarchive:
+    src: "{{solr_zip_url}}"
+    remote_src: yes
+    dest: "{{home}}/"
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+  when:
+    - not install_from_local_store|bool
+    - not archvie.stat.exists|bool
+
+
+- name: Create shared config
+  template: 
+    src: solr/shared.properties.j2
+    dest: "{{solr.home}}/solrhome/conf/shared.properties"
+    owner: "{{solr.user}}"
+    group: "{{solr.group}}"
+    mode: '0755'
+    
+- name: Change Solr IN Host
+  replace:
+    path: "{{solr.home}}/solr.in.sh"
+    regexp: '^#SOLR_HOST=".*"$'
+    replace: SOLR_SOLR_HOST={{solr.host}}
+
+- name: Change Solr IN Port
+  replace:
+    path: "{{solr.home}}/solr.in.sh"
+    regexp: '^#SOLR_PORT=".*"$'
+    replace: SOLR_SOLR_PORT={{solr.port}}
+    
+- name: Add an Alfresco Host
+  lineinfile:
+    path: "{{solr.home}}/solr.in.sh"
+    line: SOLR_ALFRESCO_HOST={{alfresco.host}}
+
+- name: Add an Alfresco Port
+  lineinfile:
+    path: "{{solr.home}}/solr.in.sh"
+    line: SOLR_ALFRESCO_PORT={{alfresco.port}}
+    
+- name: fix solrcore.properties
+  import_tasks: solr/fix_solrcore.properties.yml
+    
+- name: Open ports in iptables
+  iptables_raw:
+    name: open_solr_ports
+    rules: '-A INPUT -p tcp -m state --state NEW -m multiport --dport {{solr.port}} -j ACCEPT'
+  tags: iptables
+  become: yes
+
+- name: Create solr.service
+  template: 
+    src: solr/solr.service.j2
+    dest: /etc/systemd/system/solr.service
+    
+- name: force systemd to reread configs
+  systemd:
+    daemon_reload: yes
+
+- name: Make sure a service is running
+  systemd:
+    state: started
+    name: solr
+  

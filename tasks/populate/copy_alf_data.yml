@@ -1,0 +1,43 @@
+# collect stats about the dir
+- name: check contentstore exists
+  stat:
+    path: "{{alfresco.home}}/alf_data/contentstore"
+  register: contentstore
+
+# delete directory if condition is true
+- name: purge "{{alfresco.home}}/alf_data/contentstore"
+  file:
+    state: absent
+    path: "{{alfresco.home}}/alf_data/contentstore"
+  when: contentstore.stat.exists and contentstore.stat.isdir
+  
+# collect stats about the dir
+- name: check contentstore.deleted exists
+  stat:
+    path: "{{alfresco.home}}/alf_data/contentstore.deleted"
+  register: contentstoredeleted
+
+# delete directory if condition is true
+- name: purge "{{alfresco.home}}/alf_data/contentstore.deleted"
+  file:
+    state: absent
+    path: "{{alfresco.home}}/alf_data/contentstore.deleted"
+  when: contentstoredeleted.stat.exists and contentstoredeleted.stat.isdir
+  
+- name: Copy contentstore 
+  copy: 
+    src: "{{data_extracted_home}}/contentstore"
+    dest: "{{alfresco.home}}/alf_data" 
+    remote_src: yes
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+   
+- name: Copy oouser 
+  copy: 
+    src: "{{data_extracted_home}}/oouser"
+    dest: "{{alfresco.home}}/alf_data"
+    remote_src: yes
+    owner: "{{alfresco.user}}"
+    group: "{{alfresco.group}}"
+ 
+ 

@@ -1,0 +1,29 @@
+- set_fact:
+     alfresco_service_name: "{{alfresco.service_name}}"
+     
+- name: mount existing_data
+  import_tasks: populate/mount_data.yml
+  when: copy_content|bool
+
+- name: Make sure a service "{{alfresco_service_name}}" is stopped
+  systemd:
+    state: stopped
+    name: "{{alfresco_service_name}}"
+    
+- name: copy existing_data
+  import_tasks: populate/copy_alf_data.yml
+  when: copy_content|bool
+    
+- name: extract existing_data
+  import_tasks: populate/extract_database.yml
+  when: copy_content|bool
+    
+- name: clear solr 
+  delegate_to: "{{solr.host}}"
+  import_tasks: populate/clear_solr.yml
+    
+- name: Make sure a service "{{alfresco_service_name}}" is running
+  systemd:
+    state: started
+    name: "{{alfresco_service_name}}"
+  

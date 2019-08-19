@@ -1,0 +1,13 @@
+[Unit]
+Description=Alfresco gateway service
+After=network.target
+
+[Service]
+WorkingDirectory={{gateway.home}}
+SyslogIdentifier=AlfrescoGatewayTest
+ExecStart=/bin/sh -c "exec java -Dspring.profiles.active=test -Dspring.config.location=file:./app.yml -Dspring.cloud.bootstrap.location=file:./bootstrap.yml -Dsun.jnu.encoding=UTF-8 -Dfile.encoding=UTF-8 -jar ./gateway.jar"
+User={{gateway.user}}
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
